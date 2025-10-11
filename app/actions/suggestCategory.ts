@@ -19,7 +19,8 @@ export async function suggestCategory(
     console.error("❌ Error in suggestCategory server action:", error);
     return {
       category: "Other",
-      error: "Unable to suggest category at this time",
+      error:
+        error instanceof Error ? error.message : "An unknown AI error occurred",
     };
   }
 }

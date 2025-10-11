@@ -50,7 +50,7 @@ const AddRecord = () => {
     try {
       const result = await suggestCategory(description);
       if (result.error) {
-        setAlertMessage(`AI Suggestion: ${result.error}`);
+        setAlertMessage(`AI Error: ${result.error}`);
         setAlertType("error");
       } else {
         setCategory(result.category);

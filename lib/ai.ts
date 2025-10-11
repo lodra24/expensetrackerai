@@ -136,6 +136,7 @@ export async function generateExpenseInsights(
 }
 
 export async function categorizeExpense(description: string): Promise<string> {
+  console.log("SUNUCUDAKI API KEY:", process.env.OPENROUTER_API_KEY);
   try {
     const completion = await openai.chat.completions.create({
       model: "deepseek/deepseek-chat-v3-0324:free",
@@ -172,7 +173,9 @@ export async function categorizeExpense(description: string): Promise<string> {
     return finalCategory;
   } catch (error) {
     console.error("❌ Error categorizing expense:", error);
-    return "Other";
+    throw new Error(
+      error instanceof Error ? error.message : "AI categorization failed"
+    );
   }
 }
 
