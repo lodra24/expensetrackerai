@@ -1,5 +1,5 @@
 "use server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -52,13 +52,36 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
     return { error: "Invalid date format" };
   }
 
-  // Get logged in user
-  const { userId } = await auth();
+  // --- YENİ KİMLİK DOĞRULAMA MANTIĞI ---
 
-  // Check for user
+  // Önce hızlı olan `auth()` ile dene
+  const authResult = await auth();
+  console.log("1. auth() SONUCU:", authResult.userId);
+  let userId = authResult.userId;
+
+  // Eğer `auth()` başarısız olursa, `currentUser()` ile sunucudan doğrula
   if (!userId) {
-    return { error: "User not found" };
+    console.log("auth() null döndü, currentUser() ile deneniyor...");
+    try {
+      const user = await currentUser();
+      if (user) {
+        console.log("currentUser() BAŞARILI, ID:", user.id);
+        userId = user.id;
+      } else {
+        console.log("currentUser() da null döndü.");
+      }
+    } catch (e) {
+      console.error("currentUser() çağrılırken hata oluştu:", e);
+    }
   }
+
+  // Final kontrol: Eğer iki yöntem de başarısızsa hata döndür
+  if (!userId) {
+    console.error("HATA: Her iki yöntemle de userId bulunamadı!");
+    return { error: "User not found. Please try refreshing the page." };
+  }
+
+  // --- YENİ KİMLİK DOĞRULAMA MANTIĞI SONU ---
 
   try {
     // Create a new record (allow multiple expenses per day)

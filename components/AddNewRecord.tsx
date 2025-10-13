@@ -5,7 +5,7 @@ import { suggestCategory } from "@/app/actions/suggestCategory";
 
 const AddRecord = () => {
   const formRef = useRef<HTMLFormElement>(null);
-  const [amount, setAmount] = useState(50); // Default value for expense amount
+  const [amount, setAmount] = useState("50"); // Default value for expense amount
   const [alertMessage, setAlertMessage] = useState<string | null>(null); // State for alert message
   const [alertType, setAlertType] = useState<"success" | "error" | null>(null); // State for alert type
   const [isLoading, setIsLoading] = useState(false); // State for loading spinner
@@ -29,7 +29,7 @@ const AddRecord = () => {
       setAlertMessage("Expense record added successfully!");
       setAlertType("success"); // Set alert type to success
       formRef.current?.reset();
-      setAmount(50); // Reset the amount to the default value
+      setAmount("50"); // Reset the amount to the default value
       setCategory(""); // Reset the category
       setDescription(""); // Reset the description
     }
@@ -49,20 +49,33 @@ const AddRecord = () => {
 
     try {
       const result = await suggestCategory(description);
+
       if (result.error) {
-        setAlertMessage(`AI Error: ${result.error}`);
+        setAlertMessage(`AI Error: ${result.error}. Refreshing page...`);
         setAlertType("error");
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+
+        // Yenileme planlandığı için fonksiyonun geri kalanının çalışmasını engelle.
+        // Spinner açık kalacak ve sayfa yenilenince kaybolacak.
+        return;
       } else {
         setCategory(result.category);
         setAlertMessage(`AI suggested category: ${result.category}`);
         setAlertType("success");
       }
-    } catch {
-      setAlertMessage("Failed to get AI category suggestion");
+    } catch (e) {
+      // Ağ bağlantısı gibi beklenmedik bir hata olursa burası çalışır.
+      setAlertMessage(
+        "A network error occurred. Please check your connection."
+      );
       setAlertType("error");
-    } finally {
-      setIsCategorizingAI(false);
     }
+
+    // Sadece başarılı durumda veya catch bloğundan sonra spinner'ı kapat.
+    setIsCategorizingAI(false);
   };
 
   return (
@@ -241,14 +254,22 @@ const AddRecord = () => {
                 $
               </span>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 name="amount"
                 id="amount"
                 min="0"
                 max="1000"
                 step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                value={amount === "0" ? "" : amount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Sadece boş, sayı, veya tek noktalı ondalık sayı girişine izin ver
+                  // {0,2} ile ondalık basamak sayısını 2 ile sınırlayabilirsiniz
+                  if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+                    setAmount(value);
+                  }
+                }}
                 className="w-full pl-6 pr-3 py-2.5 bg-white/70 dark:bg-gray-800/70 border-2 border-gray-200/80 dark:border-gray-600/80 rounded-xl focus:ring-2 focus:ring-emerald-500/30 focus:bg-white dark:focus:bg-gray-700/90 focus:border-emerald-400 dark:focus:border-emerald-400 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm font-semibold shadow-sm hover:shadow-md transition-all duration-200"
                 placeholder="0.00"
                 required
