@@ -57,13 +57,10 @@ const AddRecord = () => {
       const result = await suggestCategory(description);
 
       if (result.error) {
-        setAlertMessage(`AI Error: ${result.error}. Refreshing page...`);
+        setAlertMessage(
+          `AI Error: ${result.error}. Please choose a category manually or try again.`
+        );
         setAlertType("error");
-
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-
         return;
       } else {
         setCategory(result.category);
@@ -75,10 +72,10 @@ const AddRecord = () => {
         "A network error occurred. Please check your connection."
       );
       setAlertType("error");
+    } finally {
+      // Stop spinner regardless of success or failure
+      setIsCategorizingAI(false);
     }
-
-    // Sadece başarılı durumda veya catch bloğundan sonra spinner'ı kapat.
-    setIsCategorizingAI(false);
   };
 
   return (
