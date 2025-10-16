@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getAIInsights } from "@/app/actions/getAIInsights";
 import { generateInsightAnswer } from "@/app/actions/generateInsightAnswer";
 
@@ -19,10 +19,23 @@ interface AIAnswer {
   isLoading: boolean;
 }
 
-const AIInsights = () => {
-  const [insights, setInsights] = useState<InsightData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+interface AIInsightsProps {
+  initialInsights: InsightData[];
+  initialUpdatedAt?: string;
+}
+
+const AIInsights = ({ initialInsights, initialUpdatedAt }: AIInsightsProps) => {
+  const [insights, setInsights] = useState<InsightData[]>(initialInsights);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(() => {
+    if (initialUpdatedAt) {
+      return new Date(initialUpdatedAt);
+    }
+    if (initialInsights.length > 0) {
+      return new Date();
+    }
+    return null;
+  });
   const [aiAnswers, setAiAnswers] = useState<AIAnswer[]>([]);
 
   const loadInsights = async () => {
@@ -98,10 +111,6 @@ const AIInsights = () => {
       );
     }
   };
-
-  useEffect(() => {
-    loadInsights();
-  }, []);
 
   const getInsightIcon = (type: string) => {
     switch (type) {

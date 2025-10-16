@@ -1,3 +1,4 @@
+import { getAIInsights } from "@/app/actions/getAIInsights";
 import AddNewRecord from "@/components/AddNewRecord";
 import AIInsights from "@/components/AIInsights";
 import ExpenseStats from "@/components/ExpenseStats";
@@ -12,6 +13,9 @@ export default async function HomePage() {
   if (!user) {
     return <Guest />;
   }
+
+  const aiInsights = await getAIInsights();
+  const initialUpdatedAt = new Date().toISOString();
   return (
     <main className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans min-h-screen transition-colors duration-300">
       {/* Mobile-optimized container with responsive padding */}
@@ -98,7 +102,10 @@ export default async function HomePage() {
 
         {/* Full-width sections below - mobile-friendly spacing */}
         <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-6">
-          <AIInsights />
+          <AIInsights
+            initialInsights={aiInsights}
+            initialUpdatedAt={initialUpdatedAt}
+          />
           <RecordHistory />
         </div>
       </div>
