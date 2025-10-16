@@ -5,36 +5,42 @@ import { suggestCategory } from "@/app/actions/suggestCategory";
 
 const AddRecord = () => {
   const formRef = useRef<HTMLFormElement>(null);
-  const [amount, setAmount] = useState("50"); // Default value for expense amount
-  const [alertMessage, setAlertMessage] = useState<string | null>(null); // State for alert message
-  const [alertType, setAlertType] = useState<"success" | "error" | null>(null); // State for alert type
-  const [isLoading, setIsLoading] = useState(false); // State for loading spinner
-  const [category, setCategory] = useState(""); // State for selected expense category
-  const [description, setDescription] = useState(""); // State for expense description
-  const [isCategorizingAI, setIsCategorizingAI] = useState(false); // State for AI categorization loading
+  const [amount, setAmount] = useState("50");
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertType, setAlertType] = useState<"success" | "error" | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [isCategorizingAI, setIsCategorizingAI] = useState(false);
 
   const clientAction = async (formData: FormData) => {
     setIsLoading(true); // Show spinner
     setAlertMessage(null); // Clear previous messages
 
-    formData.set("amount", amount.toString()); // Add the amount value to the form data
-    formData.set("category", category); // Add the selected category to the form data
+    formData.set("amount", amount.toString());
+    formData.set("category", category);
 
-    const { error } = await addExpenseRecord(formData); // Removed `data` since it's unused
+    try {
+      const { error } = await addExpenseRecord(formData);
 
-    if (error) {
-      setAlertMessage(`Error: ${error}`);
-      setAlertType("error"); // Set alert type to error
-    } else {
-      setAlertMessage("Expense record added successfully!");
-      setAlertType("success"); // Set alert type to success
-      formRef.current?.reset();
-      setAmount("50"); // Reset the amount to the default value
-      setCategory(""); // Reset the category
-      setDescription(""); // Reset the description
+      if (error) {
+        setAlertMessage(`Error: ${error}`);
+        setAlertType("error");
+      } else {
+        setAlertMessage("Expense record added successfully!");
+        setAlertType("success");
+        formRef.current?.reset();
+        setAmount("50");
+        setCategory("");
+        setDescription("");
+      }
+    } catch (error) {
+      console.error("Unexpected error while adding expense record:", error);
+      setAlertMessage("An unexpected error occurred. Please try again.");
+      setAlertType("error");
+    } finally {
+      setIsLoading(false); // Hide spinner
     }
-
-    setIsLoading(false); // Hide spinner
   };
 
   const handleAISuggestCategory = async () => {
@@ -58,8 +64,6 @@ const AddRecord = () => {
           window.location.reload();
         }, 1500);
 
-        // Yenileme planlandığı için fonksiyonun geri kalanının çalışmasını engelle.
-        // Spinner açık kalacak ve sayfa yenilenince kaybolacak.
         return;
       } else {
         setCategory(result.category);
@@ -67,7 +71,6 @@ const AddRecord = () => {
         setAlertType("success");
       }
     } catch (e) {
-      // Ağ bağlantısı gibi beklenmedik bir hata olursa burası çalışır.
       setAlertMessage(
         "A network error occurred. Please check your connection."
       );
