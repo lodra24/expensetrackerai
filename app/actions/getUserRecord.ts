@@ -14,20 +14,38 @@ async function getUserRecord(): Promise<{
   }
 
   try {
-    const records = await db.records.findMany({
+    const recordSumPromise = db.records.aggregate({
       where: { userId },
+      _sum: {
+        amount: true,
+      },
     });
 
-    const record = records.reduce((sum, record) => sum + record.amount, 0);
+    // 2. Harcama yapılan benzersiz gün sayısını alma
+    const distinctDaysPromise = db.records.groupBy({
+      by: ["date"],
+      where: {
+        userId,
+        amount: {
+          gt: 0, // Sadece pozitif harcamaların olduğu günleri say
+        },
+      },
+    });
 
-    // Count the number of days with valid sleep records
-    const daysWithRecords = records.filter(
-      (record) => record.amount > 0
-    ).length;
+    // İki sorguyu paralel olarak çalıştırır
+    const [stats, distinctDaysResult] = await Promise.all([
+      recordSumPromise,
+      distinctDaysPromise,
+    ]);
 
-    return { record, daysWithRecords };
+    const daysWithRecords = distinctDaysResult.length;
+
+    return {
+      record: stats._sum.amount ?? 0,
+      daysWithRecords: daysWithRecords,
+    };
   } catch (error) {
-    console.error("Error fetching user record:", error); // Log the error
+    console.error("Error fetching user record:", error);
     return { error: "Database error" };
   }
 }

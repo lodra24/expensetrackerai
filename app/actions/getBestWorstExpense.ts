@@ -14,23 +14,20 @@ async function getBestWorstExpense(): Promise<{
   }
 
   try {
-    // Fetch all records for the authenticated user
-    const records = await db.records.findMany({
+    const stats = await db.records.aggregate({
       where: { userId },
-      select: { amount: true }, // Fetch only the `amount` field for efficiency
+      _max: {
+        amount: true,
+      },
+      _min: {
+        amount: true,
+      },
     });
 
-    if (!records || records.length === 0) {
-      return { bestExpense: 0, worstExpense: 0 }; // Return 0 if no records exist
-    }
-
-    const amounts = records.map((record) => record.amount);
-
-    // Calculate best and worst expense amounts
-    const bestExpense = Math.max(...amounts); // Highest amount
-    const worstExpense = Math.min(...amounts); // Lowest amount
-
-    return { bestExpense, worstExpense };
+    return {
+      bestExpense: stats._max.amount ?? 0,
+      worstExpense: stats._min.amount ?? 0,
+    };
   } catch (error) {
     console.error("Error fetching expense amounts:", error); // Log the error
     return { error: "Database error" };
