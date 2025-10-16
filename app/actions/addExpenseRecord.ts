@@ -2,6 +2,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 interface RecordData {
   text: string;
@@ -15,42 +16,62 @@ interface RecordResult {
   error?: string;
 }
 
+const recordSchema = z.object({
+  text: z
+    .string({ required_error: "Text is required" })
+    .trim()
+    .min(1, "Text is required")
+    .max(255, "Text must be 255 characters or less"),
+  amount: z
+    .coerce
+    .number({ invalid_type_error: "Amount must be a valid number" })
+    .refine((value) => Number.isFinite(value), { message: "Amount must be a valid number" })
+    .refine((value) => value >= 0, { message: "Amount must be zero or greater" }),
+  category: z
+    .string({ required_error: "Category is required" })
+    .trim()
+    .min(1, "Category is required")
+    .max(100, "Category must be 100 characters or less"),
+  date: z
+    .string({ required_error: "Date is required" })
+    .trim()
+    .refine((value) => /^\d{4}-\d{2}-\d{2}$/.test(value), {
+      message: "Date must follow YYYY-MM-DD format",
+    })
+    .refine((value) => {
+      const [year, month, day] = value.split("-").map(Number);
+
+      if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+        return false;
+      }
+
+      const utcDate = new Date(Date.UTC(year, month - 1, day));
+      return (
+        utcDate.getUTCFullYear() === year &&
+        utcDate.getUTCMonth() === month - 1 &&
+        utcDate.getUTCDate() === day
+      );
+    }, { message: "Date is invalid" }),
+});
+
 async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
-  const textValue = formData.get("text");
-  const amountValue = formData.get("amount");
-  const categoryValue = formData.get("category");
-  const dateValue = formData.get("date"); // Extract date from formData
+  const validationResult = recordSchema.safeParse({
+    text: formData.get("text"),
+    amount: formData.get("amount"),
+    category: formData.get("category"),
+    date: formData.get("date"),
+  });
 
-  // Check for input values
-  if (
-    !textValue ||
-    textValue === "" ||
-    !amountValue ||
-    !categoryValue ||
-    categoryValue === "" ||
-    !dateValue ||
-    dateValue === ""
-  ) {
-    return { error: "Text, amount, category, or date is missing" };
+  if (!validationResult.success) {
+    const firstIssue = validationResult.error.issues.at(0);
+    return { error: firstIssue?.message ?? "Invalid input data" };
   }
 
-  const text: string = textValue.toString(); // Ensure text is a string
-  const amount: number = parseFloat(amountValue.toString()); // Parse amount as number
-  const category: string = categoryValue.toString(); // Ensure category is a string
+  const { text, amount, category, date: rawDate } = validationResult.data;
+
   // Convert date to ISO-8601 format while preserving the user's input date
-  let date: string;
-  try {
-    // Parse the date string (YYYY-MM-DD format) and create a date at noon UTC to avoid timezone issues
-    const inputDate = dateValue.toString();
-    const [year, month, day] = inputDate.split("-");
-    const dateObj = new Date(
-      Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0)
-    );
-    date = dateObj.toISOString();
-  } catch (error) {
-    console.error("Invalid date format:", error); // Log the error
-    return { error: "Invalid date format" };
-  }
+  const [year, month, day] = rawDate.split("-").map(Number);
+  const isoDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).toISOString();
 
   // --- YENİ KİMLİK DOĞRULAMA MANTIĞI ---
 
@@ -90,7 +111,7 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
         text,
         amount,
         category,
-        date, // Save the date to the database
+        date: isoDate, // Save the date to the database
         userId,
       },
     });
@@ -99,7 +120,7 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
       text: createdRecord.text,
       amount: createdRecord.amount,
       category: createdRecord.category,
-      date: createdRecord.date?.toISOString() || date,
+      date: createdRecord.date?.toISOString() || isoDate,
     };
 
     revalidatePath("/");
